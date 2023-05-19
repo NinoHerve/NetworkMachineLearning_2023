@@ -2,3 +2,4 @@
 .env
 EEGDataset/
 *npy
+*__pycache__/
