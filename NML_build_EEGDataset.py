@@ -52,22 +52,32 @@ if __name__ == '__main__':
 
     print('Creating EEG dataset for NML course')
 
-    # Create EEGDataset directory
+    # Select names for labels
+    if task == 'faces':
+        labels = ['faces', 'scrambled']
+    elif task == 'motion':
+        labels = ['label1', 'label2']
+    else:
+        raise ValueError(f'task should be "faces" or "motion", not {task}')
+
+    # Create EEGDataset directory with label subdirectories
     eeg_dir = save_dir / 'EEGDataset'
     os.makedirs(eeg_dir)
+    for l in labels: 
+        os.makedirs(eeg_dir / l)
 
+    # Iterate through subjects
     for sub in subjects:
         
         # Subject name
         subject = f'sub-{str(sub).zfill(2)}'
-        print(f'Loading and saving data from {subject}...')
+        print(f'\nLoading and saving data from {subject}...')
 
-        # Create subject directory
-        subject_dir = eeg_dir / subject 
-        os.makedirs(subject_dir)
-
-        # Load data then save data in subject directory
+        # Load data
         X, y = load_data_Vepcon(bids_dir, subject, task)
 
-        np.save(subject_dir / f'{subject}_data.npy', X)
-        np.save(subject_dir / f'{subject}_target.npy', y)
+        # Save each epoch as sample in respective label folder
+        for i, l in enumerate(y):
+            label_dir = eeg_dir / l.lower()
+            np.save(label_dir / f'{subject}_{i}.npy', X[i])
+        
