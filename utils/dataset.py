@@ -1,8 +1,9 @@
+# make a method in data that returns a Standardizer
 import torch
 from torch.utils.data import Dataset
 import os
 import numpy as np
-
+from utils.transforms import StandardScaler
 
 class EEGDataset(Dataset):
     """EEG dataset"""
@@ -53,3 +54,52 @@ class EEGDataset(Dataset):
                     files.append(eeg_dir / l / fn)
 
         return files
+    
+
+    def standard_scaler(self):
+        """Builds a transform to standardize data to *this dataset"""
+
+        mean = self.mean()
+        var  = self.var()
+
+        scaler = StandardScaler(mean, var)
+
+        return scaler
+    
+
+    def mean(self):
+        """Compute the average of the dataset"""
+
+        # initialization (end size should be (n_channels,))
+        fn   = self.files[0]
+        eeg  = np.load(fn)              # (n_channel, n_time_points)
+        sum_ = np.sum(eeg, axis=1)      # (n_channel,)
+
+        for fn in self.files[1:]:       # skip first element
+            eeg = np.load(fn)
+            sum_ += np.sum(eeg, axis=1)
+
+        N = self.__len__() * eeg.shape[1]   # n_samples * n_time_points
+        mean = sum_ / N                     # normalize
+
+        return mean
+    
+
+    def var(self, mean=None):
+        """Compute the standard deviation of the dataset"""
+
+        if mean is None:
+            mean = self.mean()
+
+        sum_ = np.zeros_like(mean)
+
+        for fn in self.files:
+            eeg = np.load(fn)                           # (n_channel, n_time_points)
+            eeg = eeg - np.expand_dims(mean, axis=1)    # centralize
+            sum_ += np.sum(eeg**2, axis=1)              # (n_channel,)
+
+        N = self.__len__() * eeg.shape[1]   # n_samples * n_time_points
+        var = sum_ / (N-1)                  # normalize
+
+        return var
+

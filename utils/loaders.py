@@ -1,3 +1,5 @@
+# Loaders to load data from the EEG dataset
+
 import numpy as np
 
 

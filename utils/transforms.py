@@ -45,7 +45,7 @@ class TemporalShift(object):
             sample (dict): EEG data of shape (n_channels, n_time_points) and labels
 
         Return:
-            numpy.ndarray: Shifted EEG data
+            (dict): Shifted EEG data and labels
         """
         eeg, label = sample['eeg'], sample['label']
 
@@ -68,7 +68,7 @@ class AmplitudeScaling(object):
             sample (dict): EEG data of shape (n_channels, n_time_points) and labels
 
         Returns:
-            numpy.ndarray: Scaled EEG data.
+            (dict): Rescaled EEG data and labels
         """
         eeg, label = sample['eeg'], sample['label']
 
@@ -92,7 +92,7 @@ class Resize(object):
             sample (dict): EEG data of shape (n_channels, n_time_points) and labels
 
         Returns:
-            numpy.ndarray: Resized EEG data.
+            (dict): Resized EEG data and labels
         """
         eeg, label = sample['eeg'], sample['label']
 
@@ -107,4 +107,28 @@ class Resize(object):
         resized_eeg = eeg[:, pruning_left:-pruning_right]
 
         return {'eeg': resized_eeg,
+                'label': label}
+    
+
+class StandardScaler(object):
+    """Standardize samples"""
+
+    def __init__(self, mean, std):
+        self.mean_ = np.expand_dims(mean, axis=1)
+        self.var_  = np.expand_dims(std, axis=1)
+
+    def __call__(self, sample):
+        """Standardize data
+
+        Args:
+            sample (dict): EEG data of shape (n_channels, n_time_points) and labels
+
+        Returns:
+            (dict): Rescaled EEG data and labels
+        """
+        eeg, label = sample['eeg'], sample['label']
+
+        scaled_eeg = (eeg - self.mean_) / np.sqrt(self.var_)
+
+        return {'eeg': scaled_eeg,
                 'label': label}
