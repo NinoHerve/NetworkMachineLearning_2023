@@ -140,6 +140,27 @@ def build_fig_time_kurtosis(faces, scram):
 
     return fig
 
+# plot time ptp
+def build_fig_time_ptp(faces, scram):
+    ptp_faces = np.ptp(faces, axis=-1).flatten()
+    ptp_scram = np.ptp(scram, axis=-1).flatten()
+
+    hist_data = [ptp_faces, ptp_scram]
+    group_labels = ['faces', 'scrambled']
+
+    fig = ff.create_distplot(hist_data, group_labels, bin_size=.1, show_rug=False)
+    range = [
+        min(np.min(ptp_faces), np.min(ptp_scram)),
+        max(np.max(ptp_faces), np.max(ptp_scram)),
+    ]
+    fig.update_layout(xaxis=dict(range=range))
+
+    return fig
+
+
+# plot time 
+
+
 SUBJECTS = [
     'sub-01', 'sub-02', 'sub-03', 'sub-04',
     'sub-06', 'sub-07', 'sub-08', 'sub-09', 'sub-10',
