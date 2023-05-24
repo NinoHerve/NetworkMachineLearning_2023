@@ -44,7 +44,7 @@ class EEGDataset(Dataset):
             (list): list of file names containing specified subject samples
         """
 
-        labels = os.listdir(eeg_dir)    # first two folders seperate data into labels
+        labels = [l for l in os.listdir(eeg_dir) if not l.startswith('.')]    # first two folders seperate data into labels
         files  = []                                                  
 
         for l in labels:
