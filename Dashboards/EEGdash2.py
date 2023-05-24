@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../')
+
 import dash
 from dash import dcc, html, Input, Output, State
 from utils.dataset import EEGDataset
@@ -144,7 +147,7 @@ SUBJECTS = [
     'sub-16', 'sub-17', 'sub-18', 'sub-19', 'sub-20'
 ]
 
-eeg_dir = Path('./EEGDataset')
+eeg_dir = Path('../EEGDataset')
 DATA = EEGDataset(eeg_dir, SUBJECTS)
 FILES = DATA.files
 

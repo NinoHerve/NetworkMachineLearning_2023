@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../')
+
 import dash
 from dash import dcc, html, Input, Output, State
 import matplotlib.pyplot as plt
@@ -42,7 +45,7 @@ def get_file_index(file_name):
     return None
 
 bids_dir = Path('/home/admin/work/data/ds003505-download')
-eeg_dir  = Path('./EEGDataset')
+eeg_dir  = Path('../EEGDataset')
 task     = 'faces'
 
 SUBJECTS = ['sub-01', 'sub-02', 'sub-03', 'sub-04', 'sub-06',
