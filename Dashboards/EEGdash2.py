@@ -7,9 +7,8 @@ from utils.dataset import EEGDataset
 from pathlib import Path
 import plotly.graph_objs as go 
 import numpy as np
-from plotly.subplots import make_subplots
-import plotly.figure_factory as ff
-from scipy import stats
+from Dashboards.dash2plots import *
+
 
 
 # Get index in dataset of a file
@@ -41,125 +40,6 @@ def get_subject_data(subject_files):
 
     return eeg_faces, eeg_scram
 
-# Plot EEG raw signals
-def build_fig_trial(sample):
-
-    n_channels = sample['eeg'].shape[0]
-    times = np.arange(sample['eeg'].shape[1])
-
-    step = 1. / n_channels
-    yaxis = dict(domain=[1 - step, 1], showticklabels=False, zeroline=False, showgrid=False)
-    line = dict(color='black', width=1)
-
-    # Create objects for layout and traces
-    layout = go.Layout(yaxis = go.layout.YAxis(yaxis))
-    traces = [go.Scatter(x=times, y=sample['eeg'].T[:,0], line=line)]
-
-    # loop over the channels
-    for ii in range(1, n_channels):
-        yaxis.update(domain=[1 - (ii+1)*step, 1 - ii*step])
-        layout.update({'yaxis%d' % (ii+1): go.layout.YAxis(yaxis), 'showlegend':False})
-        traces.append(go.Scatter(x=times, y=sample['eeg'].T[:,ii], yaxis='y%d' % (ii+1), line=line))
-
-
-    layout.update(autosize=False, width=500, height=2000)
-    fig = go.Figure(data=traces, layout=layout)
-
-    return fig
-
-# plot trial average
-def build_fig_trial_average(faces, scram):
-   
-    avg_faces = np.mean(faces, axis=0)
-    avg_scram = np.mean(scram, axis=0)
-
-    line = dict(color='black', width=0.1)
-
-    fig = make_subplots(rows=2, cols=1)
-    fig.update_layout(showlegend=False)
-
-    for row in avg_faces:
-        fig.add_trace(go.Scatter(y=row, line=line), row=1, col=1)
-
-    for row in avg_scram:
-        fig.add_trace(go.Scatter(y=row, line=line), row=2, col=1)
-
-    return fig
-
-
-# plot time average
-def build_fig_time_average(faces, scram):
-
-    avg_faces = np.mean(faces, axis=2).flatten()
-    avg_scram = np.mean(scram, axis=2).flatten()
-
-    hist_data = [avg_faces, avg_scram]
-    group_labels = ['faces', 'scrambled']
-
-    fig = ff.create_distplot(hist_data, group_labels, bin_size=1e-9, show_rug=False)
-
-    range = [
-        min(np.min(avg_faces), np.min(avg_scram)),
-        max(np.max(avg_faces), np.max(avg_scram)),
-    ]
-    fig.update_layout(xaxis=dict(range=range))
-
-    return fig
-
-# plot time skewness
-def build_fig_time_skewness(faces, scram):
-    skew_faces = stats.skew(faces, axis=-1).flatten()
-    skew_scram = stats.skew(scram, axis=-1).flatten()
-
-    hist_data = [skew_faces, skew_scram]
-    group_labels = ['faces', 'scrambled']
-
-    fig = ff.create_distplot(hist_data, group_labels, bin_size=0.2, show_rug=False)
-    range = [
-        min(np.min(skew_faces), np.min(skew_scram)),
-        max(np.max(skew_faces), np.max(skew_scram)),
-    ]
-    fig.update_layout(xaxis=dict(range=range))
-
-    return fig
-
-# plot time kurtosis
-def build_fig_time_kurtosis(faces, scram):
-    kurt_faces = stats.skew(faces, axis=-1).flatten()
-    kurt_scram = stats.skew(scram, axis=-1).flatten()
-
-    hist_data = [kurt_faces, kurt_scram]
-    group_labels = ['faces', 'scrambled']
-
-    fig = ff.create_distplot(hist_data, group_labels, bin_size=.1, show_rug=False)
-    range = [
-        min(np.min(kurt_faces), np.min(kurt_scram)),
-        max(np.max(kurt_faces), np.max(kurt_scram)),
-    ]
-    fig.update_layout(xaxis=dict(range=range))
-
-    return fig
-
-# plot time ptp
-def build_fig_time_ptp(faces, scram):
-    ptp_faces = np.ptp(faces, axis=-1).flatten()
-    ptp_scram = np.ptp(scram, axis=-1).flatten()
-
-    hist_data = [ptp_faces, ptp_scram]
-    group_labels = ['faces', 'scrambled']
-
-    fig = ff.create_distplot(hist_data, group_labels, bin_size=.1, show_rug=False)
-    range = [
-        min(np.min(ptp_faces), np.min(ptp_scram)),
-        max(np.max(ptp_faces), np.max(ptp_scram)),
-    ]
-    fig.update_layout(xaxis=dict(range=range))
-
-    return fig
-
-
-# plot time 
-
 
 SUBJECTS = [
     'sub-01', 'sub-02', 'sub-03', 'sub-04',
@@ -177,6 +57,14 @@ FEATURES = [
     'time average',
     'time skewness',
     'time kurtosis',
+    'time ptp',
+    'time variance',
+    'time root mean square',
+    'time maximum value',
+    'time minimum value',
+    'time maximum position',
+    'time minimum position',
+    'time absolute difference',
 ]
 
 app = dash.Dash(__name__)
@@ -199,14 +87,14 @@ upper_component = html.Div(
             id='dd_trial',
             options=[{'label':'0', 'value':0}],
             placeholder='Select a trial',
-            style={'width': '200px', 'font-size': '20px', 'margin-bottom': '10px'}
+            style={'width': '200px', 'font-size': '18px', 'margin-bottom': '10px'}
         ),
         dcc.Dropdown(
             id='dd_feature',
             options=[{'label':'0', 'value':0}],
             value=FEATURES[0],
             placeholder='Select a feature',
-            style={'width': '200px', 'font-size': '20px', 'margin-bottom': '10px'},
+            style={'width': '200px', 'font-size': '16px', 'margin-bottom': '10px'},
         )
     ]
 )
@@ -298,7 +186,47 @@ def update_feature(feature, subject_files):
         fig = build_fig_time_kurtosis(faces, scram)
         fig.update_layout(autosize=False, width=600, height=500)
         return fig
-
+    
+    if feature=='time ptp':
+        fig = build_fig_time_ptp(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig 
+    
+    if feature=='time variance':
+        fig = build_fig_time_var(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig
+    
+    if feature=='time root mean square':
+        fig = build_fig_time_rms(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig
+    
+    if feature=='time maximum value':
+        fig = build_fig_time_max(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig 
+    
+    if feature=='time minimum value':
+        fig = build_fig_time_min(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig 
+    
+    if feature=='time maximum position':
+        fig = build_fig_time_max_arg(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig
+    
+    if feature=='time minimum position':
+        fig = build_fig_time_min_arg(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig 
+    
+    if feature=='time absolute difference':
+        fig = build_fig_time_abs(faces, scram)
+        fig.update_layout(autosize=False, width=600, height=500)
+        return fig
+    
     return None
 
 if __name__ == '__main__':

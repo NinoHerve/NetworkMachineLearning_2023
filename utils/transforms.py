@@ -27,8 +27,25 @@ class ToTensor(object):
     def __call__(self, sample):
         eeg, label = sample['eeg'], sample['label']
 
-        return {'eeg': torch.from_numpy(eeg),
+        eeg   = torch.from_numpy(eeg).float()
+        label = torch.tensor(label, dtype=torch.float)
+
+        return {'eeg': eeg,
                 'label': label}
+    
+
+class Flatten(object):
+    """Flatten EEG to 1D array"""
+
+    def __call__(self, sample):
+        eeg, label = sample['eeg'], sample['label']
+
+        eeg = eeg.flatten()
+
+        return {'eeg': eeg,
+                'label': label}
+    
+
     
 class TemporalShift(object):
     """Randomly shift eeg signal"""
