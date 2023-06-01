@@ -3,3 +3,7 @@
 EEGDataset/
 *npy
 **/__pycache__/
+
+data_io/
+notebooks_hugo/split/
+notebooks_hugo/tmp_out/
