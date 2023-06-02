@@ -1,4 +1,6 @@
 import torch.nn as nn
+from torch_geometric.nn import GATConv, global_mean_pool
+import torch.nn.functional as F
 
 
 class CNN(nn.Module):
@@ -91,27 +93,43 @@ class MLP(nn.Module):
         nn.init.xavier_normal_(self.output[0].weight)
 
 
-class CNN2(nn.Module):
-    
-    def __init__(self):
+class GNN(nn.Module):
+    def __init__(self, in_channels=4, num_layers=3, hid_channels=64):
         super().__init__()
+        self.conv1 = GATConv(in_channels, hid_channels)
+        self.convs = nn.ModuleList()
+        for _ in range(num_layers - 1):
+            self.convs.append(GATConv(hid_channels, hid_channels))
+        self.lin1 = nn.Linear(hid_channels, hid_channels)
+        self.lin2 = nn.Linear(hid_channels, 1)
+        self.sig  = nn.Sigmoid()
 
-        self.conv2d  = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(1,1))
-        self.bn      = nn.BatchNorm2d(1, track_running_stats=False)
-        self.linear  = nn.Linear(1*128*625, 1)
-        self.sigmoid = nn.Sigmoid()
-        
-
-    def forward(self, x):
-        x = x.view(-1,1,128,625)
-        x = self.conv2d(x)
-        x = self.bn(x)
-        x = x.view(-1,1*128*625)
-        x = self.linear(x)
-        x = self.sigmoid(x)
-
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = F.relu(self.conv1(x, edge_index))
+        for conv in self.convs:
+            x = F.relu(conv(x, edge_index))
+        x = global_mean_pool(x, batch)
+        x = F.relu(self.lin1(x))
+        #x = F.dropout(x, p=0.5)
+        x = self.lin2(x)
+        x = self.sig(x)
         return x
     
-    def init_weights(self):
-        nn.init.kaiming_uniform_(self.conv1d[0].weight, nonlinearity='relu')
-        nn.init.kaiming_uniform_(self.output[0].weight, nonlinearity='relu')
+class GNN2(nn.Module):
+    def __init__(self, in_channels=4, num_layers=3, hid_channels=64):
+        super().__init__()
+        self.conv1 = GATConv(in_channels, hid_channels)
+        self.lin1 = nn.Linear(hid_channels, hid_channels)
+        self.lin2 = nn.Linear(hid_channels, 1)
+        self.sig  = nn.Sigmoid()
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        x = F.relu(self.conv1(x, edge_index))
+        x = global_mean_pool(x, batch)
+        x = F.relu(self.lin1(x))
+        #x = F.dropout(x, p=0.5)
+        x = self.lin2(x)
+        x = self.sig(x)
+        return x
