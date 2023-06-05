@@ -12,7 +12,7 @@ suit you.
 """
 
 # path to Vepcon dataset
-bids_dir = Path('/home/admin/work/data/ds003505-download/')
+bids_dir = Path('/Users/hugofluhr/DATA/ds003505/')
 
 # path where to save EEGDataset
 save_dir = Path(os.getcwd())
@@ -62,9 +62,12 @@ if __name__ == '__main__':
 
     # Create EEGDataset directory with label subdirectories
     eeg_dir = save_dir / 'EEGDataset'
-    os.makedirs(eeg_dir)
+    if not os.path.exists(eeg_dir):
+        os.makedirs(eeg_dir)
+
     for l in labels: 
-        os.makedirs(eeg_dir / l)
+        if not os.path.exists(eeg_dir / l):
+            os.makedirs(eeg_dir / l)
 
     # Iterate through subjects
     for sub in subjects:
