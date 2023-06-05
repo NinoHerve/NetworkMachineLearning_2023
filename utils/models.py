@@ -111,9 +111,10 @@ class GNN(nn.Module):
             x = F.relu(conv(x, edge_index))
         x = global_mean_pool(x, batch)
         x = F.relu(self.lin1(x))
-        #x = F.dropout(x, p=0.5)
         x = self.lin2(x)
+        x = F.dropout(x, p=0.5) 
         x = self.sig(x)
+         
         return x
     
 class GNN2(nn.Module):
