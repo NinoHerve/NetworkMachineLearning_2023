@@ -1,5 +1,6 @@
 import torch.nn as nn
-from torch_geometric.nn import GATConv, global_mean_pool
+from torch_geometric.nn import GATConv, global_mean_pool, LayerNorm
+from torch_geometric.nn.norm import graph_norm
 import torch.nn.functional as F
 
 
@@ -121,16 +122,16 @@ class GNN2(nn.Module):
     def __init__(self, in_channels=4, num_layers=3, hid_channels=64):
         super().__init__()
         self.conv1 = GATConv(in_channels, hid_channels)
-        self.lin1 = nn.Linear(hid_channels, hid_channels)
-        self.lin2 = nn.Linear(hid_channels, 1)
+        self.norm  = LayerNorm(hid_channels)
+        self.lin1 = nn.Linear(hid_channels, 1)
         self.sig  = nn.Sigmoid()
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
         x = F.relu(self.conv1(x, edge_index))
+        x = self.norm(x)
         x = global_mean_pool(x, batch)
-        x = F.relu(self.lin1(x))
+        x = self.lin1(x)
         #x = F.dropout(x, p=0.5)
-        x = self.lin2(x)
         x = self.sig(x)
         return x
