@@ -264,9 +264,16 @@ def read_epochs(bids_dir, subject, task):
 
     fileName = bids_dir / 'derivatives' / 'eeglab-v14.1.1' / subject / 'eeg' / f'{subject}_task-{task}_desc-preproc_eeg.set'
 
-    eeg = mne.io.read_epochs_eeglab(fileName)
+    epochs = mne.read_epochs_eeglab(
+            fileName,
+            events=None,
+            event_id=None,
+            eog=(),
+            verbose=0,
+            uint16_codec=None,
+        )
 
-    return eeg
+    return epochs
 
 
 def read_events(bids_dir, subject, task):
