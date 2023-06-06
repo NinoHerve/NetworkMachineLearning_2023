@@ -39,6 +39,11 @@ def load_data_Vepcon(bids_dir, subject, task):
     """
 
     epochs = read_epochs(bids_dir, subject, task)
+    # process epochs 
+    epochs.apply_baseline((-0.2, 0))
+    epochs.crop(tmin=-0.1, tmax=0.5)
+    
+
     events = read_events(bids_dir, subject, task)
 
     X = epochs.get_data()
@@ -61,7 +66,7 @@ if __name__ == '__main__':
         raise ValueError(f'task should be "faces" or "motion", not {task}')
 
     # Create EEGDataset directory with label subdirectories
-    eeg_dir = save_dir / 'EEGDataset'
+    eeg_dir = save_dir / 'EEGDataset/raw'
     if not os.path.exists(eeg_dir):
         os.makedirs(eeg_dir)
 
