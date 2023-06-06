@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from scipy import stats
 
 
 
@@ -149,3 +150,51 @@ class StandardScaler(object):
 
         return {'eeg': scaled_eeg,
                 'label': label}
+    
+
+
+
+# Feature transformation
+def extract_features(X, features):
+
+    X_feat = [feat(X) for feat in features]
+    X_feat = np.stack(X_feat, axis=-1)
+
+    return X_feat 
+
+
+def mean(X):
+    return np.mean(X, axis=-1)
+
+def std(X):
+    return np.std(X, axis=-1)
+
+def ptp(X):
+    return np.ptp(X, axis=-1)
+
+def var(X):
+    return np.var(X, axis=-1)
+
+def minim(X):
+    return np.min(X, axis=-1)
+
+def maxim(X):
+    return np.max(X, axis=-1)
+
+def argminim(X):
+    return np.argmin(X, axis=-1)
+
+def argmaxim(X):
+    return np.argmax(X, axis=-1)
+
+def rms(X):
+    return np.sqrt(np.mean(X**2, axis=-1))
+
+def abs_diff_signal(X):
+    return np.sum(np.abs(np.diff(X, axis=-1)), axis=-1)
+
+def skewness(X):
+    return stats.skew(X, axis=-1)
+
+def kurtosis(X):
+    return stats.kurtosis(X, axis=-1)

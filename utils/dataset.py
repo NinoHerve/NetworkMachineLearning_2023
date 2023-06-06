@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 import os
 import numpy as np
 from utils.transforms import StandardScaler
-from utils.graph_utils import pearson_corr_coef
+from utils.graph_utils import pearson_corr_coef, threshold_graph
 from torch_geometric.data import InMemoryDataset, Data
 import shutil
 import pandas as pd
@@ -111,7 +111,7 @@ class EEGDataset(Dataset):
 class GraphDataset(InMemoryDataset):
     """EEG dataset"""
 
-    def __init__(self, root, subjects, feat_transform, graph_type = 'electrode_adjacency', reprocess=False):
+    def __init__(self, root, subjects, feat_transform=None, graph_type='electrode_adjacency', reprocess=False):
         """__init__
 
         Args:
@@ -162,7 +162,7 @@ class GraphDataset(InMemoryDataset):
             list_of_edges_index, list_of_edge_weights = [],[]
             for s in range(len(X)):
                 trial = X[s]
-                edge_index, edge_weights = self.load_graph_corr_coef(trial, threshold=False, binarize=False)
+                edge_index, edge_weights = self.load_graph_corr_coef(trial)
                 list_of_edges_index.append(edge_index)
                 list_of_edge_weights.append(edge_weights)
             # Transform data
@@ -170,7 +170,7 @@ class GraphDataset(InMemoryDataset):
                 X = self.feat_transform(X)
             X = torch.tensor(X, dtype=torch.float)
             y = torch.tensor(y, dtype=torch.float)
-            data_list = [Data(X[i], edge_index, edge_weights = edge_weights, y=y[i]) for i, edge_index, edge_weights in zip(range(len(X)), list_of_edges_index, list_of_edge_weights)]
+            data_list = [Data(X[i], edge_index, edge_weights=edge_weights, y=y[i]) for i, edge_index, edge_weights in zip(range(len(X)), list_of_edges_index, list_of_edge_weights)]
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
@@ -234,36 +234,51 @@ class GraphDataset(InMemoryDataset):
 
         return edge_index
     
-    def load_graph_corr_coef(self, eeg, threshold=.5, binarize=True):
+    def load_graph_corr_coef(self, eeg):
         """ Build graph by computing correlation coefficient between electrodes"""
 
         num_nodes = len(eeg)
         adj = np.zeros((num_nodes, num_nodes))
 
         # need to compute adj matrix to be able to threshold or binarize
-        for i in range(1,num_nodes):
+        for i in range(num_nodes):
             for j in range(i+1, num_nodes):
                 adj[i][j] = pearson_corr_coef(eeg[i], eeg[j])
-        
-        adj += adj.T
-        if threshold:
-            adj[adj<threshold] = 0
-        
-        if binarize:
-            adj[adj!=0] = 1.
 
         # create edge index COO format
         edge_index = []
         edge_weights = []
         for i in range(len(adj)):
-            for j in range(i, len(adj)):
-                if adj[i,j] > 0:
+            for j in range(i+1, len(adj)):
+                if adj[i,j] != 0:
                     edge_index.append([i,j])
                     edge_weights.append(adj[i,j])
 
         edge_index = torch.tensor(edge_index, dtype=torch.long).T
-        edge_index = torch.cat([edge_index,edge_index[[1,0],:]] , dim=1)   # make undirected
         edge_weights = torch.tensor(edge_weights)
+
+        edge_index, edge_weights = threshold_graph(edge_index, edge_weights, density=0.2)
+
+        edge_index = torch.cat([edge_index,edge_index[[1,0],:]] , dim=1)   # make undirected
         edge_weights = torch.cat([edge_weights, edge_weights])
 
         return edge_index, edge_weights
+    
+
+################
+# Dataset utils
+
+def data_split(graph_data, lengths):
+
+    assert sum(lengths) == 1, 'parts of length should sum to 1'
+
+    size_ = len(graph_data)
+    indices = np.arange(size_)
+    np.random.shuffle(indices)
+
+    splits = np.cumsum([int(size_*l) for l in lengths])[:-1]
+    indices = np.split(indices, splits)
+
+    datas  = [graph_data[ids].copy() for ids in indices]
+
+    return datas
