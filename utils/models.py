@@ -1,8 +1,8 @@
 import torch.nn as nn
-from torch_geometric.nn import GATConv, GATv2Conv, global_mean_pool, LayerNorm
+from torch_geometric.nn import GATConv, GATv2Conv, global_add_pool, global_sort_pool, global_max_pool, global_mean_pool, LayerNorm
 from torch_geometric.nn.norm import graph_norm
 import torch.nn.functional as F
-
+import torch
 
 class CNN(nn.Module):
 
@@ -130,9 +130,46 @@ class GNN2(nn.Module):
         x, edge_index, batch = data.x, data.edge_index, data.batch
         x = F.relu(self.conv1(x, edge_index))
         x = self.norm(x)
-        #x = F.dropout(x, p=0.5)
+        x = F.dropout(x, p=0.7)
         x = global_mean_pool(x, batch)
         x = self.lin1(x)
-        x = F.dropout(x, p=0.5)
+        x = F.dropout(x, p=0.7)
         x = self.sig(x)
         return x
+    
+
+class GNN3(nn.Module):
+    def __init__(self, in_channels=4, hid_channels=64, num_layers=3):
+        super().__init__()
+        self.conv1 = GATv2Conv(in_channels, hid_channels, add_self_loops=False)
+        self.norm  = LayerNorm(hid_channels)
+        self.convs = nn.ModuleList()
+        for _ in range(num_layers - 1):
+            self.convs.append(GATConv(hid_channels, hid_channels))
+        
+        self.lin1 = nn.Linear(128*hid_channels, 128)
+        self.lin2 = nn.Linear(128, 1)
+        self.sig  = nn.Sigmoid()
+
+    def forward(self, data):
+        x, edge_index, batch = data.x, data.edge_index, data.batch
+        #x = F.dropout(x, p=0.3)
+        x = F.leaky_relu(self.conv1(x, edge_index))
+        x = self.norm(x)
+        for conv in self.convs:
+            x = F.relu(conv(x, edge_index))
+        #x = F.dropout(x, p=0.5)
+        x = self.linearize(x, batch)
+        x = F.leaky_relu(self.lin1(x))
+        #x = F.dropout(x, p=0.5)
+        x = self.lin2(x)
+        x = self.sig(x)
+        return x
+    
+    def linearize(self, x, batch):
+        features = []
+        for sample in torch.unique(batch):
+            rows = (batch == sample)
+            features.append(x[rows].flatten())
+
+        return torch.stack(features)
