@@ -2,6 +2,7 @@ import os
 import mne
 import pandas as pd
 import numpy as np
+from scipy.spatial.distance import pdist, squareform
 import sys
 
 sys.path.append("../")
@@ -9,6 +10,9 @@ from utils.graph_utils import pearson_corr_coef
 from multiprocessing import Pool
 from functools import partial
 
+from geopy.distance import geodesic
+from itertools import combinations
+import math
 
 def read_subject_epochs(
     bids_dir, subject, tmin=-0.1, tmax=0.5, apply_proj=False, apply_baseline=True
@@ -124,9 +128,9 @@ def reduce_trials(X, y, S, method="sample", n_samples=50, seed=0):
             for trial_type in unique_trial_types:
                 trial_indices = np.where(np.logical_and(S == sub, y == trial_type))[0]
                 picked_trials.append(
-                    np.sort(np.random.choice(trial_indices, n_samples, replace=False))
+                    np.random.choice(trial_indices, n_samples, replace=False)
                 )
-        picked_trials = np.concatenate(picked_trials, axis=0)
+        picked_trials = np.sort(np.concatenate(picked_trials, axis=0))
         print("Picked {} trials out of {}".format(len(picked_trials), len(X)))
         return X[picked_trials], y[picked_trials], S[picked_trials]
 
@@ -160,6 +164,13 @@ def corr_coef_graph(eeg, threshold=False, binarize=False):
 
     return adj
 
+def threshold_graphs(adjs, density):
+    thresholded_adjs = adjs.copy()
+    for adj in thresholded_adjs:
+        threshold = calculate_threshold(adj, density)
+        adj[adj < threshold] = 0
+
+    return thresholded_adjs
 
 def calculate_threshold(adjacency_matrix, density):
     """computes threshold to get desired density
@@ -179,3 +190,43 @@ def calculate_threshold(adjacency_matrix, density):
     threshold_index = int(len(flattened_matrix) * density)
     threshold = flattened_matrix[threshold_index]
     return threshold
+
+def electrode_distances(file_path = '../EEGDataset/electrode_coordinates.csv'):
+    elec_coord = pd.read_csv(file_path, usecols=['x','y','z'])
+
+    positions = elec_coord.to_numpy()
+    distances = squareform(pdist(positions))
+    return distances
+
+def electrode_x_distances(file_path = '../EEGDataset/electrode_coordinates.csv'):
+    elec_coord = pd.read_csv(file_path, usecols=['x'])
+
+    positions = elec_coord.to_numpy()
+    distances = squareform(pdist(positions))
+    return distances
+
+def electrode_distances_geodesic(file_path = '../EEGDataset/electrode_geographic_coords.csv'):
+    elec_coord = pd.read_csv(file_path)
+    positions = elec_coord.to_numpy()
+    n_points = len(positions)
+    distances = np.zeros((n_points, n_points))
+
+    # Compute geodesic distances between all pairs of points
+    for i, j in combinations(range(n_points), 2):
+        point1 = positions[i][::-1]
+        point2 = positions[j][::-1]
+        distance = geodesic(point1, point2).meters
+        distances[i][j] = distance
+        distances[j][i] = distance
+
+    return distances/np.max(distances)
+
+def get_node_ordering(with_hemi=False, fname='../EEGDataset/electrode_coordinates.csv'):
+    df = pd.read_csv(fname)
+    hemi_map ={-1 : 1, 1: 2, 0: 0}
+    df['hemi'] = df['x'].apply(lambda x : hemi_map.get(np.sign(x)))
+    df.sort_values(['hemi','y','x'], ascending=[True, False, True], inplace=True)
+    if with_hemi:
+        return df.index.to_numpy(), df['hemi'].to_numpy()
+
+    return df.index.to_numpy()
