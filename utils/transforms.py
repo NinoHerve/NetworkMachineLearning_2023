@@ -128,12 +128,20 @@ class Resize(object):
                 'label': label}
     
 
-class StandardScaler(object):
+class EEGStandardScaler(object):
     """Standardize samples"""
 
-    def __init__(self, mean, std):
-        self.mean_ = np.expand_dims(mean, axis=1)
-        self.var_  = np.expand_dims(std, axis=1)
+    def __init__(self, dataset=None):
+        self.mean, self.std = self.compute_metrics(dataset)
+
+    def compute_metrics(self, dataset):
+        eeg = [sample['eeg'] for sample in dataset]
+        eeg = torch.stack(eeg)
+
+        mean = torch.mean(eeg, axis=0)
+        std  = torch.std(eeg, axis=0)
+
+        return mean, std
 
     def __call__(self, sample):
         """Standardize data
@@ -146,11 +154,37 @@ class StandardScaler(object):
         """
         eeg, label = sample['eeg'], sample['label']
 
-        scaled_eeg = (eeg - self.mean_) / np.sqrt(self.var_)
+        scaled_eeg = (eeg - self.mean) / self.std
 
         return {'eeg': scaled_eeg,
                 'label': label}
+
     
+class GraphStandardScaler():
+    def __init__(self, mean=0, std=0, dataset=None):
+        self.mean = mean
+        self.std = std
+        if dataset is not None:
+            self.fit(dataset)
+
+    def fit(self, dataset):
+        X = []
+        for data in dataset:
+            X.append(data.x)
+
+        X = torch.stack(X)
+        self.mean = torch.mean(X, axis=0)
+        self.std  = torch.std(X, axis=0)
+
+    def transform(self, dataset):
+        slices = dataset.slices['x'] 
+        for i, _ in enumerate(slices[:-1]):
+            idx1, idx2 = slices[i], slices[i+1]
+            dataset._data.x[idx1:idx2] = (dataset._data.x[idx1:idx2] - self.mean) / (self.std+1e-20)
+
+    def fit_transform(self, dataset):
+        self.fit(dataset)
+        self.transform(dataset)
 
 
 

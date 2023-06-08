@@ -12,7 +12,7 @@ suit you.
 """
 
 # path to Vepcon dataset
-bids_dir = Path('/Users/hugofluhr/DATA/ds003505/')
+bids_dir = Path('/home/admin/work/data/ds003505-download/')
 
 # path where to save EEGDataset
 save_dir = Path(os.getcwd())
