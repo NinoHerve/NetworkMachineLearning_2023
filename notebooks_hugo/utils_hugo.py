@@ -3,7 +3,9 @@ import mne
 import pandas as pd
 import numpy as np
 from scipy.spatial.distance import pdist, squareform
+import networkx as nx
 import sys
+from tqdm.notebook import tqdm
 
 sys.path.append("../")
 from utils.graph_utils import pearson_corr_coef
@@ -40,7 +42,7 @@ def read_subject_epochs(
     epochs.event_id = {"Scrambled": 0, "Faces": 1}
 
     if apply_baseline:
-        epochs.apply_baseline((-0.2, 0))
+        epochs.apply_baseline((-0.2, 0), verbose='critical')
 
     epochs.set_eeg_reference(ref_channels="average", projection=True, verbose='critical')
 
@@ -137,10 +139,10 @@ def reduce_trials(X, y, S, method="sample", n_samples=50, seed=0):
 
 def compute_graphs_multi(X, graph_fct, threshold):
     adjs = []
-
     with Pool() as pool:
         compute_adj_partial = partial(graph_fct, threshold=threshold)
-        adjs = pool.map(compute_adj_partial, X)
+        for adj in tqdm(pool.map(compute_adj_partial, X), total=len(X)):
+            adjs.append(adj)
 
     return np.stack(adjs, axis=0)
 
@@ -190,6 +192,18 @@ def calculate_threshold(adjacency_matrix, density):
     threshold_index = int(len(flattened_matrix) * density)
     threshold = flattened_matrix[threshold_index]
     return threshold
+
+def compute_graph_stats(adj):
+    G = nx.from_numpy_array(adj)
+    # we need the giant component for the distances and diameter
+    Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
+    Gcc = G.subgraph(Gcc[0])
+
+    cc = nx.average_clustering(G)
+    avg_spl = nx.average_shortest_path_length(Gcc)
+    diam = nx.diameter(Gcc)
+
+    return cc, avg_spl, diam
 
 def electrode_distances(file_path = '../EEGDataset/electrode_coordinates.csv'):
     elec_coord = pd.read_csv(file_path, usecols=['x','y','z'])
