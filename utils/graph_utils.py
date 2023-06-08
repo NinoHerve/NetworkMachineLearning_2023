@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from scipy.signal import hilbert
 
 
@@ -17,6 +18,8 @@ def plv(x, y):
             (np.sqrt(np.inner(x_hill, np.conj(x_hill)) * np.inner(y_hill, np.conj(y_hill)))))
     return np.angle(pdt)
 
+
+
 def threshold_graph(edge_index, edge_weights, density):
 
     sorted_idx = np.argsort(edge_weights)
@@ -27,3 +30,12 @@ def threshold_graph(edge_index, edge_weights, density):
     edge_weights_threshold = edge_weights[mask]
     
     return edge_index_threshold, edge_weights_threshold
+
+
+def linearize(x, batch):
+    features = []
+    for sample in torch.unique(batch):
+        rows = (batch == sample)
+        features.append(x[rows].flatten())
+
+    return torch.stack(features)

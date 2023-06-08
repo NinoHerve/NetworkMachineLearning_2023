@@ -3,7 +3,6 @@ import torch
 from torch.utils.data import Dataset
 import os
 import numpy as np
-from utils.transforms import StandardScaler
 from utils.graph_utils import pearson_corr_coef, threshold_graph
 from torch_geometric.data import InMemoryDataset, Data
 import shutil
@@ -58,54 +57,6 @@ class EEGDataset(Dataset):
                     files.append(eeg_dir / l / fn)
 
         return files
-    
-
-    def standard_scaler(self):
-        """Builds a transform to standardize data to *this dataset"""
-
-        mean = self.mean()
-        var  = self.var()
-
-        scaler = StandardScaler(mean, var)
-
-        return scaler
-    
-
-    def mean(self):
-        """Compute the average of the dataset"""
-
-        # initialization (end size should be (n_channels,))
-        fn   = self.files[0]
-        eeg  = np.load(fn)              # (n_channel, n_time_points)
-        sum_ = np.sum(eeg, axis=1)      # (n_channel,)
-
-        for fn in self.files[1:]:       # skip first element
-            eeg = np.load(fn)
-            sum_ += np.sum(eeg, axis=1)
-
-        N = self.__len__() * eeg.shape[1]   # n_samples * n_time_points
-        mean = sum_ / N                     # normalize
-
-        return mean
-    
-
-    def var(self, mean=None):
-        """Compute the standard deviation of the dataset"""
-
-        if mean is None:
-            mean = self.mean()
-
-        sum_ = np.zeros_like(mean)
-
-        for fn in self.files:
-            eeg = np.load(fn)                           # (n_channel, n_time_points)
-            eeg = eeg - np.expand_dims(mean, axis=1)    # centralize
-            sum_ += np.sum(eeg**2, axis=1)              # (n_channel,)
-
-        N = self.__len__() * eeg.shape[1]   # n_samples * n_time_points
-        var = sum_ / (N-1)                  # normalize
-
-        return var
     
 
 class GraphDataset(InMemoryDataset):
@@ -170,7 +121,7 @@ class GraphDataset(InMemoryDataset):
                 X = self.feat_transform(X)
             X = torch.tensor(X, dtype=torch.float)
             y = torch.tensor(y, dtype=torch.float)
-            data_list = [Data(X[i], edge_index, edge_weights=edge_weights, y=y[i]) for i, edge_index, edge_weights in zip(range(len(X)), list_of_edges_index, list_of_edge_weights)]
+            data_list = [Data(X[i], edge_index, edge_weight=edge_weights, y=y[i]) for i, edge_index, edge_weights in zip(range(len(X)), list_of_edges_index, list_of_edge_weights)]
 
         data, slices = self.collate(data_list)
         torch.save((data, slices), self.processed_paths[0])
@@ -255,7 +206,7 @@ class GraphDataset(InMemoryDataset):
                     edge_weights.append(adj[i,j])
 
         edge_index = torch.tensor(edge_index, dtype=torch.long).T
-        edge_weights = torch.tensor(edge_weights)
+        edge_weights = torch.tensor(edge_weights, dtype=torch.float)
 
         edge_index, edge_weights = threshold_graph(edge_index, edge_weights, density=0.2)
 
