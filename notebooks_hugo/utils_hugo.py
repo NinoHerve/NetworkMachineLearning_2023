@@ -168,11 +168,13 @@ def corr_coef_graph(eeg, threshold=False, binarize=False):
 
 def threshold_graphs(adjs, density):
     thresholded_adjs = adjs.copy()
+    thresholds = []
     for adj in thresholded_adjs:
         threshold = calculate_threshold(adj, density)
         adj[adj < threshold] = 0
+        thresholds.append(threshold)
 
-    return thresholded_adjs
+    return thresholded_adjs, thresholds
 
 def calculate_threshold(adjacency_matrix, density):
     """computes threshold to get desired density
@@ -203,7 +205,7 @@ def compute_graph_stats(adj):
     avg_spl = nx.average_shortest_path_length(Gcc)
     diam = nx.diameter(Gcc)
 
-    return cc, avg_spl, diam
+    return cc, avg_spl, diam, len(Gcc)
 
 def electrode_distances(file_path = '../EEGDataset/electrode_coordinates.csv'):
     elec_coord = pd.read_csv(file_path, usecols=['x','y','z'])
