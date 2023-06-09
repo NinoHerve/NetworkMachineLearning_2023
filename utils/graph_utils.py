@@ -11,12 +11,15 @@ def pearson_corr_coef(x,y, abs=True):
         return corr_coef
 
 
-def plv(x, y):
+def plv(x, y, abs=True):
     x_hill = hilbert(x)
     y_hill = hilbert(y)
     pdt = (np.inner(x_hill, np.conj(y_hill)) /
             (np.sqrt(np.inner(x_hill, np.conj(x_hill)) * np.inner(y_hill, np.conj(y_hill)))))
-    return np.angle(pdt)
+    if abs:
+        return np.abs(np.angle(pdt))
+    else:
+        return np.angle(pdt)
 
 
 
