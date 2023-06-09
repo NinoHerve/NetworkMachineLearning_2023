@@ -71,17 +71,17 @@ class MLP(nn.Module):
     def __init__(self, input_size):
         super().__init__()
         self.input = nn.Sequential(
-            nn.Linear(input_size, 128),
+            nn.Linear(input_size, 64),
             nn.LeakyReLU(),
             nn.Dropout(),
         )
         self.hidden = nn.Sequential(
-            nn.Linear(128, 128),
+            nn.Linear(64, 64),
             nn.LeakyReLU(),
             nn.Dropout(),
         )
         self.output = nn.Sequential(
-            nn.Linear(128, 1),
+            nn.Linear(64, 1),
             nn.Sigmoid(),
         )
 
@@ -98,16 +98,21 @@ class MLP(nn.Module):
         nn.init.xavier_normal_(self.output[0].weight)
 
 
-class SGAT(nn.Module):
-    def __init__(self, in_channels=151, hid_channels=64):
+class GAT(nn.Module):
+    def __init__(self, in_channels=151, hid_channels=64, num_layers=1):
         super().__init__()
         self.conv1 = GATConv(in_channels, hid_channels)
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers -1):
+            self.convs.append(GATConv(hid_channels, hid_channels))
         self.lin1 = nn.Linear(128*hid_channels, 1)
         self.sig  = nn.Sigmoid()
 
     def forward(self, data):
         x, edge_index, batch = data.x, data.edge_index, data.batch
         x = F.relu(self.conv1(x, edge_index))
+        for conv in self.convs:
+            x = F.relu(conv(x, edge_index))
         x = linearize(x, batch)
         x = self.lin1(x)
         x = self.sig(x)    
@@ -115,10 +120,13 @@ class SGAT(nn.Module):
 
 
 
-class SGCN(nn.Module):
-    def __init__(self, in_channels=151, hid_channels=64):
+class GCN(nn.Module):
+    def __init__(self, in_channels=151, hid_channels=64, num_layers=1):
         super().__init__()
         self.conv1 = GCNConv(in_channels, hid_channels)
+        self.convs = torch.nn.ModuleList()
+        for _ in range(num_layers-1):
+            self.convs.append(GCNConv(hid_channels, hid_channels))
         self.lin1 = nn.Linear(128*hid_channels, 1)
         self.sig  = nn.Sigmoid()
 
@@ -127,13 +135,15 @@ class SGCN(nn.Module):
         if edge_weight is not None: 
             edge_weight = edge_weight.float()
         x = F.relu(self.conv1(x, edge_index, edge_weight).float())
+        for conv in self.convs:
+            x = F.relu(conv(x, edge_index, edge_weight).float())
         x = linearize(x, batch)
         x = self.lin1(x)
         x = self.sig(x)
         return x
 
 
-class SCheb(nn.Module):
+class Cheb(nn.Module):
     def __init__(self, in_channels=151, hid_channels=64, K=1):
         super().__init__()
         self.conv1 = ChebConv(in_channels, hid_channels, K=K)
@@ -146,6 +156,24 @@ class SCheb(nn.Module):
             edge_weight = edge_weight.float()
         x = F.relu(self.conv1(x, edge_index, edge_weight=edge_weight))
         x = linearize(x, batch)
+        x = self.lin1(x)
+        x = self.sig(x)
+        return x
+
+
+class ChebGlobalPooling(nn.Module):
+    def __init__(self, in_channels=151, hid_channels=64, K=1):
+        super().__init__()
+        self.conv1 = ChebConv(in_channels, hid_channels, K=K)
+        self.lin1 = nn.Linear(hid_channels, 1)
+        self.sig  = nn.Sigmoid()
+
+    def forward(self, data):
+        x, edge_index, edge_weight, batch = data.x, data.edge_index, data.edge_weight, data.batch
+        if edge_weight is not None: 
+            edge_weight = edge_weight.float()
+        x = F.relu(self.conv1(x, edge_index, edge_weight=edge_weight))
+        x = global_mean_pool(x, batch)
         x = self.lin1(x)
         x = self.sig(x)
         return x

@@ -214,7 +214,8 @@ class GraphDataset(InMemoryDataset):
         edge_weights = torch.cat([edge_weights, edge_weights])
 
         return edge_index, edge_weights
-    
+  
+
 
 ################
 # Dataset utils
@@ -233,3 +234,10 @@ def data_split(graph_data, lengths):
     datas  = [graph_data[ids].copy() for ids in indices]
 
     return datas
+
+def split_sets(sets, i):
+    s = [data.copy() for data in sets]
+    val_data = s.pop(i)
+    train_data = s[0]+s[1]+s[2]+s[3]+s[4]+s[5]+s[6]
+
+    return train_data, val_data
