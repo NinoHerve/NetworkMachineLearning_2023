@@ -177,10 +177,16 @@ class GraphStandardScaler():
         self.std  = torch.std(X, axis=0)
 
     def transform(self, dataset):
-        slices = dataset.slices['x'] 
-        for i, _ in enumerate(slices[:-1]):
-            idx1, idx2 = slices[i], slices[i+1]
-            dataset._data.x[idx1:idx2] = (dataset._data.x[idx1:idx2] - self.mean) / (self.std+1e-20)
+        if isinstance(dataset, torch.utils.data.dataset.ConcatDataset):
+            datas = dataset.datasets
+        else:
+            datas = [dataset]
+
+        for D in datas:    
+            slices = D.slices['x'] 
+            for i, _ in enumerate(slices[:-1]):
+                idx1, idx2 = slices[i], slices[i+1]
+                D._data.x[idx1:idx2] = (D._data.x[idx1:idx2] - self.mean) / (self.std+1e-20)
 
     def fit_transform(self, dataset):
         self.fit(dataset)
