@@ -7,4 +7,4 @@ We analyze data from the VEPCON dataset https://openneuro.org/datasets/ds003505/
 To run our code :
 - Download the data at the link above.
 - the jupyter notebook /notebooks_hugo/Xplore.ipynb contains all of our code for the exploration of the data.
-- XXX to fill XXX
+- the jupyter notebooks /notebooksNino/EEG_conv.ipynb, /notebooksNino/EEG_gnn1.ipynb, /notebooksNino/EEG_gnn2.ipynb contains all of our code for the exploitation of the data
